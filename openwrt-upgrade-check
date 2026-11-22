@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+#
+# openwrt-upgrade-check - report whether an OpenWrt router runs the newest release on GitHub.
+#
+# Usage:
+#   openwrt-upgrade-check --host <host> [--user <user>] [--identity <file>]
+#
+# The newest release is the highest vX.Y.Z tag (release candidates are ignored) of
+# https://github.com/openwrt/openwrt. The installed version is read over ssh from
+# /etc/openwrt_release, so key-based login to <user>@<host> (default user: root) must work.
+# The only command run on the router is 'cat /etc/openwrt_release', so the key can be
+# restricted to it (see the README).
+#
+# Nothing is installed; the script only reports. Progress goes to stdout, errors to stderr.
+# Requires bash, git and ssh.
+#
+# Exit status:
+#   0  up to date
+#   1  error (including router unreachable)
+#   3  upgrade available
+
+set -euo pipefail
+
+log()   { echo "$*"; }
+error() { echo "$*" >&2; exit 1; }
+
+trap 'error "Failed at line $LINENO"' ERR
+
+host="" user=root identity=()
+while (($#)); do
+    case "$1" in
+        --host) host="${2:?--host needs a value}"; shift 2 ;;
+        --user) user="${2:?--user needs a value}"; shift 2 ;;
+        --identity) identity=(-i "${2:?--identity needs a value}" -o IdentitiesOnly=yes); shift 2 ;;
+        *)      error "Unknown argument: $1" ;;
+    esac
+done
+if [[ -z $host ]]; then
+    error "usage: $0 --host <host> [--user <user>] [--identity <file>]"
+fi
+
+log "Checking OpenWrt on $host for upgrades"
+
+# Release tags are vX.Y.Z; v24.10.0-rc1 and friends don't match. Sorted oldest first.
+version_re='^[0-9]+\.[0-9]+\.[0-9]+$'
+versions=$(git ls-remote --tags --refs https://github.com/openwrt/openwrt 'v*' \
+    | sed -E 's|.*refs/tags/v||' | { grep -E "$version_re" || true; } | sort -V)
+if [[ -z $versions ]]; then
+    error "No release tags found on GitHub"
+fi
+latest=$(tail -n1 <<<"$versions")
+log "Newest version: $latest"
+
+installed=$(ssh -o StrictHostKeyChecking=accept-new "${identity[@]}" "$user@$host" cat /etc/openwrt_release \
+    | sed -n "s/^DISTRIB_RELEASE='\(.*\)'$/\1/p")
+log "Installed version: $installed"
+
+if [[ $installed == "$latest" || $(printf '%s\n' "$latest" "$installed" | sort -V | tail -n1) != "$latest" ]]; then
+    log "Already up to date"
+    exit 0
+fi
+log "Upgrade available: $installed -> $latest (see https://openwrt.org/releases)"
+exit 3

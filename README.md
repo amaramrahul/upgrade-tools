@@ -5,6 +5,7 @@ Small scripts that keep self-hosted software up to date, meant to run unattended
 | Tool | What it does |
 |---|---|
 | [docker-container-upgrade](#docker-container-upgrade) | Keeps a Docker container on the newest version tag of its image |
+| [openwrt-upgrade-check](#openwrt-upgrade-check) | Reports when a router runs an older OpenWrt than the newest GitHub release |
 
 ## Installing
 
@@ -65,4 +66,52 @@ Add `--dry-run` to see what would happen without changing anything:
 
 ```bash
 /opt/upgrade-tools/docker-container-upgrade --name homeassistant --repo ghcr.io/home-assistant/home-assistant --minor-only --dry-run
+```
+
+## openwrt-upgrade-check
+
+Compares the OpenWrt version installed on a router with the newest release on GitHub. It only reports; it never upgrades the router.
+
+**Requires:** bash, git and ssh (`sudo apt install openssh-client`). The router must accept key-based ssh login for the user (default `root`) from the machine running the script.
+
+### Usage
+
+```
+openwrt-upgrade-check --host <host> [--user <user>] [--identity <file>]
+```
+
+- **Newest release:** the highest `vX.Y.Z` tag of [openwrt/openwrt](https://github.com/openwrt/openwrt). Release candidates are ignored.
+- **`--identity`:** ssh private key to log in with. Only this key is tried; ssh's default keys and the agent are not.
+- **First connection:** the router's host key is stored automatically the first time. A changed host key is rejected.
+- **Installed version:** `DISTRIB_RELEASE` from `/etc/openwrt_release` on the router.
+
+| Exit status | Meaning |
+|---|---|
+| 0 | Router is up to date |
+| 1 | Error (for example the router is unreachable) |
+| 3 | Upgrade available |
+
+**Locking the key down:** the only command the script runs on the router is `cat /etc/openwrt_release`. To stop the key from running anything else, create a dedicated key (`ssh-keygen -t ed25519 -f ~/.ssh/openwrt-upgrade-check`) and add it to `/etc/dropbear/authorized_keys` on the router with a forced command:
+
+```
+command="cat /etc/openwrt_release",restrict ssh-ed25519 AAAA... openwrt-upgrade-check
+```
+
+Then pass `--identity ~/.ssh/openwrt-upgrade-check`.
+
+Example daily cron job, saved as `/etc/cron.daily/x-openwrt-upgrade-check`:
+
+```bash
+#!/usr/bin/env bash
+exec chronic -e /opt/upgrade-tools/openwrt-upgrade-check --host 192.168.1.1 --identity /root/.ssh/openwrt-upgrade-check
+```
+
+To check several routers from one cron job, add one `chronic -e` line per router, without `exec`.
+
+### Testing
+
+Run it directly:
+
+```bash
+/opt/upgrade-tools/openwrt-upgrade-check --host 192.168.1.1
 ```
