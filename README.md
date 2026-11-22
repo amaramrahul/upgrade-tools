@@ -43,21 +43,21 @@ docker run -d --name=<container> --restart unless-stopped <docker run args> <rep
 |---|---|
 | 0 | No upgrade found |
 | 1 | Error |
-| 2 | Upgrade done (or, with `--dry-run`, would be done) |
-| 3 | Upgrade blocked (major version with `--minor-only`) |
+| 3 | Upgrade done (or, with `--dry-run`, would be done) |
+| 4 | Upgrade blocked (major version with `--minor-only`) |
 
 Example daily cron job, saved as `/etc/cron.daily/x-homeassistant-upgrade` (cron.daily skips file names that contain a dot):
 
 ```bash
 #!/usr/bin/env bash
-exec cronic /opt/upgrade-tools/docker-container-upgrade --name homeassistant --repo ghcr.io/home-assistant/home-assistant --minor-only -- \
+exec chronic -e /opt/upgrade-tools/docker-container-upgrade --name homeassistant --repo ghcr.io/home-assistant/home-assistant --minor-only -- \
     --net=host \
     --privileged \
     -e TZ=Asia/Kolkata \
     -v /usr/local/home-assistant:/config
 ```
 
-[`cronic`](https://habilis.net/cronic/) (`sudo apt install cronic`) hides the output when the exit status is 0 and nothing was written to stderr, so cron only emails you when there's an upgrade or an error.
+[`chronic`](https://joeyh.name/code/moreutils/) (`sudo apt install moreutils`) hides the output unless the exit status is non-zero or, with `-e`, something was written to stderr. So cron only emails you when there's an upgrade or an error. To upgrade several containers from one cron job, add one `chronic -e` line per container, without `exec`.
 
 ### Testing
 
