@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+#
+# gear-lever-appimage-upgrade - update AppImages managed by Gear Lever.
+#
+# Usage:
+#   gear-lever-appimage-upgrade [app-image-name]
+#
+# Without an argument, every AppImage Gear Lever manages is updated. With a name, only
+# that AppImage is updated.
+#
+# Runs as the invoking user, never as root. From cron (as root), run it with
+#   runuser -u <user> -- gear-lever-appimage-upgrade
+# which sets USER, LOGNAME, HOME and SHELL. A logged-in user can run it directly.
+# Only those four variables are read from the environment; everything else Gear Lever
+# needs (PATH, XDG_*, D-Bus address) is derived from them.
+# If the user has no session bus yet (not logged in), waits up to 1 hour for one;
+# if none appears, exits 0 without doing anything.
+#
+# Requires bash, flatpak and Gear Lever (it.mijorus.gearlever, installed as a flatpak
+# for the user). "No updates available" lines are suppressed so cron stays quiet.
+#
+# Exit status:
+#   0  success (or no login session appeared within the wait)
+#   1  error
+#   other  exit status of Gear Lever
+
+set -eu
+
+usage() { echo "Usage: ${0##*/} [app-image-name]"; }
+error() { echo "${0##*/}: $*" >&2; exit 1; }
+
+case $# in
+    0) ;;
+    1) case $1 in -h|--help) usage; exit 0 ;; esac ;;
+    *) usage >&2; exit 1 ;;
+esac
+app=${1:-}
+
+for var in USER LOGNAME HOME SHELL; do
+    [ -n "${!var:-}" ] || error "$var is not set (run directly, or via 'runuser -u <user> --')"
+done
+
+user_id=$(id -u "$USER")
+[ "$user_id" -ne 0 ] || error "must not run as root; use 'runuser -u <user> -- ${0##*/}'"
+
+# Build everything else from the four variables; nothing else is read from the
+# environment, since under cron it may belong to root.
+export PATH=/usr/local/bin:/usr/bin:/bin
+runtime_dir=/run/user/$user_id
+bus=$runtime_dir/bus
+
+# Wait up to 1 hour for the user to log in
+i=0
+while [ ! -S "$bus" ] && [ "$i" -lt 360 ]; do sleep 10; i=$((i + 1)); done
+[ -S "$bus" ] || { echo "No session bus for $USER, skipping"; exit 0; }
+
+# If we had to wait, give the session time to finish starting
+if [ "$i" -gt 0 ]; then sleep 60; fi
+
+if [ -n "$app" ]; then
+    target=("$app")
+else
+    target=(--all)
+fi
+
+env -i \
+    PATH="$PATH" \
+    HOME="$HOME" \
+    USER="$USER" \
+    LOGNAME="$LOGNAME" \
+    SHELL="$SHELL" \
+    LANG=C.UTF-8 \
+    XDG_RUNTIME_DIR="$runtime_dir" \
+    XDG_DATA_DIRS="$HOME/.local/share/flatpak/exports/share:/var/lib/flatpak/exports/share:/usr/local/share:/usr/share" \
+    DBUS_SESSION_BUS_ADDRESS="unix:path=$bus" \
+    flatpak run it.mijorus.gearlever --update "${target[@]}" --yes \
+    | { grep -v "No updates available" || true; }
+
+exit "${PIPESTATUS[0]}"

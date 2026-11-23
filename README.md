@@ -7,6 +7,8 @@ Small scripts that keep self-hosted software up to date, meant to run unattended
 | [docker-container-upgrade](#docker-container-upgrade) | Keeps a Docker container on the newest version tag of its image |
 | [openwrt-upgrade-check](#openwrt-upgrade-check) | Reports when a router runs an older OpenWrt than the newest GitHub release |
 
+| [gear-lever-appimage-upgrade](#gear-lever-appimage-upgrade) | Updates the AppImages managed by Gear Lever |
+
 ## Installing
 
 Clone the repo anywhere, then run the installer, which asks which tools to install into `/usr/local/bin`:
@@ -116,4 +118,38 @@ Run it directly:
 
 ```bash
 openwrt-upgrade-check --host 192.168.1.1
+```
+
+## gear-lever-appimage-upgrade
+
+Runs [Gear Lever](https://github.com/mijorus/gearlever) to update AppImages. Gear Lever is a per-user app, so the script runs as that user, never as root.
+
+**Requires:** bash, flatpak and Gear Lever (`it.mijorus.gearlever`) installed as a flatpak for the user.
+
+### Usage
+
+```
+gear-lever-appimage-upgrade [app-image-name]
+```
+
+- **No argument:** updates every AppImage Gear Lever manages.
+- **`app-image-name`:** updates only that AppImage.
+- **Who runs it:** either a logged-in user directly, or root through `runuser -u <user> -- gear-lever-appimage-upgrade`. The script reads only the `USER`, `LOGNAME`, `HOME` and `SHELL` variables that `runuser` sets (nothing else from the environment, which under cron may belong to root). It derives the rest itself, including the user's session bus (`/run/user/<uid>/bus`), and starts Gear Lever with a clean environment. Running as root without `runuser` is refused.
+- **Not logged in:** if the user has no session bus yet, the script waits up to 1 hour for them to log in, then gives Gear Lever a minute to settle. If nobody logs in, it exits 0 without doing anything.
+- **Output:** "No updates available" lines are dropped, so there is no output when nothing was updated.
+
+Example daily cron job, saved as `/etc/cron.daily/x-gear-lever-appimage-upgrade`:
+
+```bash
+#!/usr/bin/env bash
+runuser -u rahul -- gear-lever-appimage-upgrade
+```
+
+### Testing
+
+Run it directly as the user, or as root through `runuser`:
+
+```bash
+gear-lever-appimage-upgrade
+sudo runuser -u rahul -- gear-lever-appimage-upgrade
 ```
