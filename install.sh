@@ -37,6 +37,8 @@ case "${1:-}" in
     *) usage >&2; exit 1 ;;
 esac
 
+((EUID == 0)) || die "must be run as root (try: sudo $0${*:+ $*})"
+
 # Tools: regular files next to this script that start with a shebang.
 tools=()
 for f in "$srcdir"/*; do
