@@ -9,13 +9,15 @@ Small scripts that keep self-hosted software up to date, meant to run unattended
 
 ## Installing
 
-Clone the repo to `/opt/upgrade-tools`:
+Clone the repo anywhere, then run the installer, which asks which tools to install into `/usr/local/bin`:
 
 ```bash
-sudo git clone https://github.com/amaramrahul/upgrade-tools.git /opt/upgrade-tools
+git clone https://github.com/amaramrahul/upgrade-tools.git
+cd upgrade-tools
+sudo ./install.sh
 ```
 
-To update the tools later, run `sudo git -C /opt/upgrade-tools pull`. Each tool lists its own requirements below.
+To remove tools, run `sudo ./install.sh --uninstall`; it asks which ones. To update, run `git pull` and then `sudo ./install.sh` again. Set `PREFIX` (default `/usr/local`) or `DESTDIR` to install elsewhere. Each tool lists its own requirements below.
 
 ## docker-container-upgrade
 
@@ -51,7 +53,7 @@ Example daily cron job, saved as `/etc/cron.daily/x-homeassistant-upgrade` (cron
 
 ```bash
 #!/usr/bin/env bash
-exec chronic -e /opt/upgrade-tools/docker-container-upgrade --name homeassistant --repo ghcr.io/home-assistant/home-assistant --minor-only -- \
+exec chronic -e docker-container-upgrade --name homeassistant --repo ghcr.io/home-assistant/home-assistant --minor-only -- \
     --net=host \
     --privileged \
     -e TZ=Asia/Kolkata \
@@ -65,7 +67,7 @@ exec chronic -e /opt/upgrade-tools/docker-container-upgrade --name homeassistant
 Add `--dry-run` to see what would happen without changing anything:
 
 ```bash
-/opt/upgrade-tools/docker-container-upgrade --name homeassistant --repo ghcr.io/home-assistant/home-assistant --minor-only --dry-run
+docker-container-upgrade --name homeassistant --repo ghcr.io/home-assistant/home-assistant --minor-only --dry-run
 ```
 
 ## openwrt-upgrade-check
@@ -103,7 +105,7 @@ Example daily cron job, saved as `/etc/cron.daily/x-openwrt-upgrade-check`:
 
 ```bash
 #!/usr/bin/env bash
-exec chronic -e /opt/upgrade-tools/openwrt-upgrade-check --host 192.168.1.1 --identity /root/.ssh/openwrt-upgrade-check
+exec chronic -e openwrt-upgrade-check --host 192.168.1.1 --identity /root/.ssh/openwrt-upgrade-check
 ```
 
 To check several routers from one cron job, add one `chronic -e` line per router, without `exec`.
@@ -113,5 +115,5 @@ To check several routers from one cron job, add one `chronic -e` line per router
 Run it directly:
 
 ```bash
-/opt/upgrade-tools/openwrt-upgrade-check --host 192.168.1.1
+openwrt-upgrade-check --host 192.168.1.1
 ```
