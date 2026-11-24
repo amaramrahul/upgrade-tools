@@ -15,6 +15,7 @@
 #   1  error
 #   2  upgrade found and done (or, with --dry-run, would be done)
 #   3  upgrade found but blocked (major upgrade with --minor-only)
+#   4  container exists but isn't running (left alone: not started, not upgraded)
 
 set -euo pipefail
 
@@ -41,21 +42,28 @@ fi
 # Version tags are 3+ dot-separated numbers (1.12.2, 8.2.7.0, 2026.11.2), sorted oldest first.
 version_re='^[0-9]+(\.[0-9]+){2,}$'
 log "Checking container $name ($repo) for upgrades"
-versions=$(skopeo list-tags "docker://$repo" | jq -r '.Tags[]' | { grep -E "$version_re" || true; } | sort -V)
-if [[ -z $versions ]]; then
-    error "No version tags found for $repo"
-fi
-log "Newest version: $(tail -n1 <<<"$versions")"
 
 # Current image and tag of the container, empty if it doesn't exist.
 current=$(docker container inspect -f '{{.Config.Image}}' "$name" 2>/dev/null || true)
 current_tag=${current##*:}
 from=${current:+$current_tag}
 if [[ -n $current ]]; then
+    # A container that isn't running (stopped, paused, ...) was left that way for a reason: leave it alone.
+    state=$(docker container inspect -f '{{.State.Status}}' "$name")
+    if [[ $state != running ]]; then
+        log "Container $name exists but is $state; leaving it alone"
+        exit 4
+    fi
     log "Container $name is running $current"
 else
     log "Container $name not found"
 fi
+
+versions=$(skopeo list-tags "docker://$repo" | jq -r '.Tags[]' | { grep -E "$version_re" || true; } | sort -V)
+if [[ -z $versions ]]; then
+    error "No version tags found for $repo"
+fi
+log "Newest version: $(tail -n1 <<<"$versions")"
 
 target="" blocked=""
 if [[ ! $current_tag =~ $version_re ]]; then

@@ -42,6 +42,7 @@ docker run -d --name=<container> --restart unless-stopped <docker run args> <rep
 - **Versions:** only tags made of three or more numbers count (`1.12.2`, `8.2.7.0`, `2026.11.2`). Tags such as `latest`, `stable`, `1.13` and `1.13.0-rc1` are ignored.
 - **`--minor-only`:** minor and patch upgrades are installed. A new major version (first number) is reported but not installed.
 - **Missing container:** it's created from the newest version. A container running on a tag like `latest` is moved to the newest version tag.
+- **Stopped container:** a container that exists but isn't running (stopped, paused, ...) is left alone: not started, not upgraded. The script logs it and exits 4, so cron mails you on every run while the container stays down. It's upgraded again on the first run after you start it.
 - **No rollback:** if the new container fails to start, the script exits with an error and the service stays down.
 
 | Exit status | Meaning |
@@ -50,6 +51,7 @@ docker run -d --name=<container> --restart unless-stopped <docker run args> <rep
 | 1 | Error |
 | 2 | Upgrade done (or, with `--dry-run`, would be done) |
 | 3 | Upgrade blocked (major version with `--minor-only`) |
+| 4 | Container exists but isn't running (left alone) |
 
 Example daily cron job, saved as `/etc/cron.daily/x-homeassistant-upgrade` (cron.daily skips file names that contain a dot):
 
