@@ -48,8 +48,8 @@ docker run -d --name=<container> --restart unless-stopped <docker run args> <rep
 |---|---|
 | 0 | No upgrade found |
 | 1 | Error |
-| 3 | Upgrade done (or, with `--dry-run`, would be done) |
-| 4 | Upgrade blocked (major version with `--minor-only`) |
+| 2 | Upgrade done (or, with `--dry-run`, would be done) |
+| 3 | Upgrade blocked (major version with `--minor-only`) |
 
 Example daily cron job, saved as `/etc/cron.daily/x-homeassistant-upgrade` (cron.daily skips file names that contain a dot):
 
@@ -93,7 +93,7 @@ openwrt-upgrade-check --host <host> [--user <user>] [--identity <file>]
 |---|---|
 | 0 | Router is up to date |
 | 1 | Error (for example the router is unreachable) |
-| 3 | Upgrade available |
+| 2 | Upgrade available |
 
 **Locking the key down:** the only command the script runs on the router is `cat /etc/openwrt_release`. To stop the key from running anything else, create a dedicated key (`ssh-keygen -t ed25519 -f ~/.ssh/openwrt-upgrade-check`) and add it to `/etc/dropbear/authorized_keys` on the router with a forced command:
 

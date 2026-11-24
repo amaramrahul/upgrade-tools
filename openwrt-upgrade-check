@@ -17,7 +17,7 @@
 # Exit status:
 #   0  up to date
 #   1  error (including router unreachable)
-#   3  upgrade available
+#   2  upgrade available
 
 set -euo pipefail
 
@@ -60,4 +60,4 @@ if [[ $installed == "$latest" || $(printf '%s\n' "$latest" "$installed" | sort -
     exit 0
 fi
 log "Upgrade available: $installed -> $latest (see https://openwrt.org/releases)"
-exit 3
+exit 2
