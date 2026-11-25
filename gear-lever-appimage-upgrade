@@ -3,10 +3,11 @@
 # gear-lever-appimage-upgrade - update AppImages managed by Gear Lever.
 #
 # Usage:
-#   gear-lever-appimage-upgrade [app-image-name]
+#   gear-lever-appimage-upgrade [--force] [app-image-name]
 #
-# Without an argument, every AppImage Gear Lever manages is updated. With a name, only
-# that AppImage is updated.
+# Without a name, every AppImage Gear Lever manages is updated. With a name, only
+# that AppImage is updated. --force is passed to Gear Lever, which then updates
+# AppImages even while they are running (they are skipped otherwise).
 #
 # Runs as the invoking user, never as root. From cron (as root), run it with
 #   runuser -u <user> -- gear-lever-appimage-upgrade
@@ -26,15 +27,20 @@
 
 set -eu
 
-usage() { echo "Usage: ${0##*/} [app-image-name]"; }
+usage() { echo "Usage: ${0##*/} [--force] [app-image-name]"; }
 error() { echo "${0##*/}: $*" >&2; exit 1; }
 
-case $# in
-    0) ;;
-    1) case $1 in -h|--help) usage; exit 0 ;; esac ;;
-    *) usage >&2; exit 1 ;;
-esac
-app=${1:-}
+app=
+extra=()
+while [ $# -gt 0 ]; do
+    case $1 in
+        -h|--help) usage; exit 0 ;;
+        --force) extra+=(--force) ;;
+        -*) usage >&2; exit 1 ;;
+        *) [ -z "$app" ] || { usage >&2; exit 1; }; app=$1 ;;
+    esac
+    shift
+done
 
 for var in USER LOGNAME HOME SHELL; do
     [ -n "${!var:-}" ] || error "$var is not set (run directly, or via 'runuser -u <user> --')"
@@ -73,7 +79,7 @@ env -i \
     XDG_RUNTIME_DIR="$runtime_dir" \
     XDG_DATA_DIRS="$HOME/.local/share/flatpak/exports/share:/var/lib/flatpak/exports/share:/usr/local/share:/usr/share" \
     DBUS_SESSION_BUS_ADDRESS="unix:path=$bus" \
-    flatpak run it.mijorus.gearlever --update "${target[@]}" --yes \
+    flatpak run it.mijorus.gearlever --update "${target[@]}" ${extra[@]+"${extra[@]}"} --yes \
     | { grep -v "No updates available" || true; }
 
 exit "${PIPESTATUS[0]}"

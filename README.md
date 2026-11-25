@@ -131,11 +131,12 @@ Runs [Gear Lever](https://github.com/mijorus/gearlever) to update AppImages. Gea
 ### Usage
 
 ```
-gear-lever-appimage-upgrade [app-image-name]
+gear-lever-appimage-upgrade [--force] [app-image-name]
 ```
 
-- **No argument:** updates every AppImage Gear Lever manages.
+- **No name:** updates every AppImage Gear Lever manages.
 - **`app-image-name`:** updates only that AppImage.
+- **`--force`:** passed straight to Gear Lever, which then updates AppImages even while they are running (otherwise they are skipped).
 - **Who runs it:** either a logged-in user directly, or root through `runuser -u <user> -- gear-lever-appimage-upgrade`. The script reads only the `USER`, `LOGNAME`, `HOME` and `SHELL` variables that `runuser` sets (nothing else from the environment, which under cron may belong to root). It derives the rest itself, including the user's session bus (`/run/user/<uid>/bus`), and starts Gear Lever with a clean environment. Running as root without `runuser` is refused.
 - **Not logged in:** if the user has no session bus yet, the script waits up to 1 hour for them to log in, then gives Gear Lever a minute to settle. If nobody logs in, it exits 0 without doing anything.
 - **Output:** "No updates available" lines are dropped, so there is no output when nothing was updated.
